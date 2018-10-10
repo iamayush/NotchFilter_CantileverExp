@@ -255,6 +255,8 @@ user_SE420_NonColocalBeam.obj: C:/CCStudio_v8/ccsv8/tools/compiler/ti-cgt-c2000_
 user_SE420_NonColocalBeam.obj: C:/ayush2/repo/trunk/SE420_NonColocalBeam/F28377sHeaders/f28377sSerial.h
 user_SE420_NonColocalBeam.obj: C:/ayush2/repo/trunk/SE420_NonColocalBeam/F28377sHeaders/f28377sEqep.h
 user_SE420_NonColocalBeam.obj: C:/ayush2/repo/trunk/SE420_NonColocalBeam/F28377sHeaders/f28377sEPWM3A.h
+user_SE420_NonColocalBeam.obj: C:/ayush2/repo/trunk/SE420_NonColocalBeam/F28377sHeaders/f28377sEPWM6A.h
+user_SE420_NonColocalBeam.obj: C:/ayush2/repo/trunk/SE420_NonColocalBeam/F28377sHeaders/f28377sEPWM8A.h
 user_SE420_NonColocalBeam.obj: C:/ayush2/repo/trunk/SE420_NonColocalBeam/F28377sHeaders/f28377sDAC.h
 user_SE420_NonColocalBeam.obj: C:/ayush2/repo/trunk/SE420_NonColocalBeam/F28377sHeaders/f28377sADC.h
 user_SE420_NonColocalBeam.obj: C:/ayush2/repo/trunk/SE420_NonColocalBeam/F28377sHeaders/lcd.h
@@ -514,6 +516,8 @@ C:/CCStudio_v8/ccsv8/tools/compiler/ti-cgt-c2000_17.6.0.STS/include/limits.h:
 C:/ayush2/repo/trunk/SE420_NonColocalBeam/F28377sHeaders/f28377sSerial.h: 
 C:/ayush2/repo/trunk/SE420_NonColocalBeam/F28377sHeaders/f28377sEqep.h: 
 C:/ayush2/repo/trunk/SE420_NonColocalBeam/F28377sHeaders/f28377sEPWM3A.h: 
+C:/ayush2/repo/trunk/SE420_NonColocalBeam/F28377sHeaders/f28377sEPWM6A.h: 
+C:/ayush2/repo/trunk/SE420_NonColocalBeam/F28377sHeaders/f28377sEPWM8A.h: 
 C:/ayush2/repo/trunk/SE420_NonColocalBeam/F28377sHeaders/f28377sDAC.h: 
 C:/ayush2/repo/trunk/SE420_NonColocalBeam/F28377sHeaders/f28377sADC.h: 
 C:/ayush2/repo/trunk/SE420_NonColocalBeam/F28377sHeaders/lcd.h: 

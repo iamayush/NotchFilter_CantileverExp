@@ -12,6 +12,8 @@
 #include "f28377sEqep.h"
 #include "f28377sSerial.h"
 #include "f28377sEPWM3A.h"
+#include "f28377sEPWM6A.h"
+#include "f28377sEPWM8A.h"
 #include "f28377sDAC.h"
 #include "f28377sADC.h"
 #include "lcd.h"
@@ -95,7 +97,30 @@ int adcbresults[4] = {0,0,0,0};
 float adcbvolts[4] = {0,0,0,0};
 float u1 = 0;
 float u2 = 0;
+float Kp = 2;
+float Kd = 0.2;
+float Ki = 100;
 
+float vel = 0;
+float vel_old = 0;
+float error = 0;
+float error_old = 0;
+float integral = 0;
+float integral_old = 0;
+float posn_old = 0;
+float posn_old1 = 0;
+float posn_old2 = 0;
+float fposn_old = 0;
+float fposn_old1 = 0;
+float fposn_old2 = 0;
+float fposn = 0;
+float des = 0.3;
+
+//butter
+float a[4]={    1.0000000000000000e+00, -5.7724052480630295e-01,    4.2178704868956213e-01, -5.6297236491842699e-02};
+float b[4]={    9.8531160923927052e-02, 2.9559348277178116e-01, 2.9559348277178116e-01, 9.8531160923927052e-02};
+
+long timer = 0;
 
 void adcStart(void){
     AdcbRegs.ADCSOCPRICTL.bit.RRPOINTER = 0x10;  //rr pionter reset, soc0 next
@@ -103,9 +128,18 @@ void adcStart(void){
 
 }
 
+void squarefunc(void){
+    if(timer < 1500)
+        des = 0.3;
+    else if(timer <3000)
+        des = 0.8;
+    else
+        timer = 0;
+}
+
 void ADChwifunc(void)
 {
-    //ADCtimer++;
+    timer++;
 
     adcbresults[0] = AdcbResultRegs.ADCRESULT0;
     adcbresults[1] = AdcbResultRegs.ADCRESULT1;
@@ -115,11 +149,39 @@ void ADChwifunc(void)
     // Here convert to Volts
     char i = 0; // for loop counter
     for (i = 0; i < 4; i++ ){
-        adcbvolts[i] = 10 - ((20.0*adcbresults[i])/4095.0);
+        adcbvolts[i] = (3.0*adcbresults[i])/4095.0;
     }
 
+    fposn = b[0]*adcbvolts[3] + b[1]*posn_old + b[2]*posn_old1 + b[3]*posn_old2 - a[1]*fposn_old - a[2]*fposn_old1 - a[3]*fposn_old2;
+
+
+    // control
+    squarefunc();
+
+    vel = 0.6*vel_old + 400*fposn - 400*fposn_old;
+    error = (des - fposn);
+    integral = integral_old + (0.001/2)*(error + error_old);
+    u1 = Kp*error - Kd*vel + Ki*integral;
+
+    if (fabs(u1) > 10){
+        integral = integral_old;
+    }
+
+    vel_old = vel;
+    integral_old = integral;
+    error_old = error;
+    //posn_old = adcbvolts[3];
+
+    posn_old2 = posn_old1;
+    posn_old1 = posn_old;
+    posn_old = adcbvolts[3];
+
+    fposn_old2 = fposn_old1;
+    fposn_old1 = fposn_old;
+    fposn_old = fposn;
+
     setEPWM8A(u1);
-    setEPWM6A(u2);
+    setEPWM8B(u2);
 
     //clearing the interrupt flag
     AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;  //clear interrupt flag }
@@ -197,7 +259,7 @@ void main(void)
     GPIO_SetupPinOptions(78, GPIO_INPUT, GPIO_PULLUP | GPIO_QUAL6);
 
     InitEPwm3Gpio();
-    InitEPwm6Gpio();
+    //InitEPwm6Gpio();
     InitEPwm8Gpio();
 
     init_serial(&SerialA,115200,matlab_serialRX);
@@ -215,10 +277,13 @@ void main(void)
     SetupADCSoftware();
 
     initEPwm3A();
-    initEPwm8A();
-    initEPwm6A();
+    initEPwm8();
+    //initEPwm6A();
 
     setEPWM3A(0);
+    //setEPWM6A(0);
+    setEPWM8A(0);
+    setEPWM8B(0);
 
     initDACs();
 
@@ -446,8 +511,8 @@ void simulink_serialRX(serial_t *s, char data) {
                 SIMU_Var1_toSIMU_32bit = EQEP_readraw(&eqep1);
                 SIMU_Var2_toSIMU_32bit = EQEP_readraw(&eqep3);
 
-                SIMU_Var1_toSIMU_16bit = adcb0result;
-                SIMU_Var2_toSIMU_16bit = adcb1result;
+                SIMU_Var1_toSIMU_16bit = adcbresults[2];
+                SIMU_Var2_toSIMU_16bit = adcbresults[3];//adcb1result;
 
                 SIMU_TXrawbytes[3] = (char)((SIMU_Var1_toSIMU_32bit >> 24) & 0xFF);
                 SIMU_TXrawbytes[2] = (char)((SIMU_Var1_toSIMU_32bit >> 16) & 0xFF);
