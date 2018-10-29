@@ -41,6 +41,25 @@ int adcb1result = 0;
 float matlabLock = 0;
 float matlabLockshadow = 0;
 
+//#pragma DATA_SECTION(timearray, ".my_arrs")
+//float timearray[1000];
+
+#pragma DATA_SECTION(oneresponsearray, ".my_arrs")
+float oneresponsearray[1000];
+
+#pragma DATA_SECTION(tworesponsearray, ".my_arrs")
+float tworesponsearray[1000];
+
+#pragma DATA_SECTION(threeresponsearray, ".my_arrs")
+float threeresponsearray[1000];
+
+#pragma DATA_SECTION(fourresponsearray, ".my_arrs")
+float fourresponsearray[1000];
+
+#pragma DATA_SECTION(fiveresponsearray, ".my_arrs")
+float fiveresponsearray[1000];
+
+
 // UART 1 GLOBAL VARIABLES
 int	UARTsensordatatimeouterror = 0;	// Initialize timeout error count
 int	UARTtransmissionerror = 0;	        // Initialize transmission error count
@@ -97,7 +116,7 @@ int adcbresults[4] = {0,0,0,0};
 float adcbvolts[4] = {0,0,0,0};
 float u1 = 0;
 float u2 = 0;
-float Kp = 2;
+float Kp = 4;
 float Kd = 0.2;
 float Ki = 100;
 
@@ -115,12 +134,69 @@ float fposn_old1 = 0;
 float fposn_old2 = 0;
 float fposn = 0;
 float des = 0.3;
+float des_hi = 2.0;
+float des_lo = 1.0;
+int arrayindex = 0;
+float OpenU = 0;
 
 //butter
 float a[4]={    1.0000000000000000e+00, -5.7724052480630295e-01,    4.2178704868956213e-01, -5.6297236491842699e-02};
 float b[4]={    9.8531160923927052e-02, 2.9559348277178116e-01, 2.9559348277178116e-01, 9.8531160923927052e-02};
 
 long timer = 0;
+long mscount = 0;
+long opentimer = 0;
+
+
+typedef struct steptraj_s {
+    long double b[7];
+    long double a[7];
+    long double xk[7];
+    long double yk[7];
+    float qd_old;
+    float qddot_old;
+    int size;
+} steptraj_t;
+
+steptraj_t trajectory = {9.4204523525420674e-13L,5.6522714115252405e-12L,1.4130678528813101e-11L,1.8840904705084135e-11L,1.4130678528813101e-11L,5.6522714115252405e-12L,9.4204523525420674e-13L,
+                        1.0000000000000000e+00L,-5.8811881188118820e+00L,1.4411822370355853e+01L,-1.8835252998880922e+01L,1.3846708268979292e+01L,-5.4290064104116844e+00L,8.8691688882963160e-01L,
+                        0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,
+                        0,
+                        0,
+                        7};
+
+// this function must be called every 1ms.
+void implement_discrete_tf(steptraj_t *traj, float step, float *qd, float *qd_dot, float *qd_ddot) {
+    int i = 0;
+
+    traj->xk[0] = step;
+    traj->yk[0] = traj->b[0]*traj->xk[0];
+    for (i = 1;i<traj->size;i++) {
+        traj->yk[0] = traj->yk[0] + traj->b[i]*traj->xk[i] - traj->a[i]*traj->yk[i];
+    }
+
+    for (i = (traj->size-1);i>0;i--) {
+        traj->xk[i] = traj->xk[i-1];
+        traj->yk[i] = traj->yk[i-1];
+    }
+
+    *qd = traj->yk[0];
+    *qd_dot = (*qd - traj->qd_old)*1000;  //0.001 sample period
+    *qd_ddot = (*qd_dot - traj->qddot_old)*1000;
+
+    traj->qd_old = *qd;
+    traj->qddot_old = *qd_dot;
+}
+
+// to call this function create a variable that steps to the new positions you want to go to, pass this var to step
+// pass a reference to your qd variable your qd_dot variable and your qd_double_dot variable
+// for example
+//  implement_discrete_tf(&trajectory, mystep, &qd, &dot, &ddot);
+
+
+
+
 
 void adcStart(void){
     AdcbRegs.ADCSOCPRICTL.bit.RRPOINTER = 0x10;  //rr pionter reset, soc0 next
@@ -130,16 +206,29 @@ void adcStart(void){
 
 void squarefunc(void){
     if(timer < 1500)
-        des = 0.3;
+        des = des_lo;
     else if(timer <3000)
-        des = 0.8;
+        des = des_hi;
     else
         timer = 0;
 }
 
+void openloopstep(void){
+    if(opentimer < 20000)
+        OpenU = 0;
+    else if(opentimer < 40000)
+        OpenU = -3;
+    else
+        opentimer = 0;
+}
+
+
+
 void ADChwifunc(void)
 {
     timer++;
+    opentimer++;
+
 
     adcbresults[0] = AdcbResultRegs.ADCRESULT0;
     adcbresults[1] = AdcbResultRegs.ADCRESULT1;
@@ -149,14 +238,15 @@ void ADChwifunc(void)
     // Here convert to Volts
     char i = 0; // for loop counter
     for (i = 0; i < 4; i++ ){
-        adcbvolts[i] = (3.0*adcbresults[i])/4095.0;
+        adcbvolts[i] = (3.0*adcbresults[i])/4095.0; //******* 3.3???
     }
 
-    fposn = b[0]*adcbvolts[3] + b[1]*posn_old + b[2]*posn_old1 + b[3]*posn_old2 - a[1]*fposn_old - a[2]*fposn_old1 - a[3]*fposn_old2;
+//    fposn = b[0]*adcbvolts[2] + b[1]*posn_old + b[2]*posn_old1 + b[3]*posn_old2 - a[1]*fposn_old - a[2]*fposn_old1 - a[3]*fposn_old2;
 
-
+    fposn = adcbvolts[2];
     // control
     squarefunc();
+    openloopstep();
 
     vel = 0.6*vel_old + 400*fposn - 400*fposn_old;
     error = (des - fposn);
@@ -180,9 +270,31 @@ void ADChwifunc(void)
     fposn_old1 = fposn_old;
     fposn_old = fposn;
 
-    setEPWM8A(u1);
+    setEPWM8A(-u1);
+    //setEPWM8A(-OpenU);
     setEPWM8B(u2);
 
+    if (arrayindex < 1000) {
+        oneresponsearray[arrayindex] = fposn;
+        arrayindex++;
+    } else if (arrayindex < 2000) {
+        tworesponsearray[arrayindex-1000] = fposn;
+        arrayindex++;
+    } else if (arrayindex < 3000) {
+        threeresponsearray[arrayindex-2000] = fposn;
+        arrayindex++;
+    } else if (arrayindex < 4000) {
+        fourresponsearray[arrayindex-3000] = fposn;
+        arrayindex++;
+    } else if (arrayindex < 5000) {
+        fiveresponsearray[arrayindex-4000] = fposn;
+        arrayindex++;
+    } else if (opentimer == 20000) {
+        arrayindex = 0;
+        mscount = 0;
+    }
+
+    mscount++;
     //clearing the interrupt flag
     AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1;  //clear interrupt flag }
 }
@@ -280,7 +392,7 @@ void main(void)
     initEPwm8();
     //initEPwm6A();
 
-    setEPWM3A(0);
+    //setEPWM3A(0);
     //setEPWM6A(0);
     setEPWM8A(0);
     setEPWM8B(0);
@@ -508,8 +620,8 @@ void simulink_serialRX(serial_t *s, char data) {
                 // but that is for Simulink control
                 // For Simulink data collection just send most current ADC and ENCs
                 // Simulink Sample rate needs to be at least 500HZ but 200Hz probably better
-                SIMU_Var1_toSIMU_32bit = EQEP_readraw(&eqep1);
-                SIMU_Var2_toSIMU_32bit = EQEP_readraw(&eqep3);
+                SIMU_Var1_toSIMU_32bit = fposn*10000;
+                SIMU_Var2_toSIMU_32bit = des*10000;
 
                 SIMU_Var1_toSIMU_16bit = adcbresults[2];
                 SIMU_Var2_toSIMU_16bit = adcbresults[3];//adcb1result;
