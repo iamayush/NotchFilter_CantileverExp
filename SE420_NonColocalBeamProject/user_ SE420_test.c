@@ -113,46 +113,39 @@ int SIMU_checkfirstcommandbyte = 0;
 
 // vars by Ayush
 int adcbresults[4] = {0,0,0,0};
-float adcbvolts[4] = {0,0,0,0};
-float u1 = 0;
-float u2 = 0;
-float Kp = 4;
-float Kd = 0.2;
-float Ki = 100;
+long double adcbvolts[4] = {0,0,0,0};
+long double u1 = 0;
+long double u2 = 0;
+long double Kp = 4;
+long double Kd = 0.2;
+long double Ki = 100;
 
-float vel = 0;
-float vel_old = 0;
-float error = 0;
-float error_old = 0;
-float integral = 0;
-float integral_old = 0;
-float posn_old = 0;
-float posn_old1 = 0;
-float posn_old2 = 0;
-float fposn_old = 0;
-float fposn_old1 = 0;
-float fposn_old2 = 0;
-float fposn = 0;
-float des = 0.3;
-float des_hi = 2.0;
-float des_lo = 1.0;
-float ref = 0;
-
-float ref_old = 0;
-float ref_old1 = 0;
-float ref_old2 = 0;
-
-float des_old = 0;
-float des_old1 = 0;
-float des_old2 = 0;
-
+long double vel = 0;
+long double vel_old = 0;
+long double error = 0;
+long double error_old = 0;
+long double integral = 0;
+long double integral_old = 0;
+long double posn_old = 0;
+long double posn_old1 = 0;
+long double posn_old2 = 0;
+long double fposn_old = 0;
+long double fposn_old1 = 0;
+long double fposn_old2 = 0;
+long double fposn = 0;
+long double des = 0.3;
+long double des_hi = 2.0;
+long double des_lo = 1.0;
+long double ref = 0;
+long double ref_old = 0;
+long double des_old = 0;
 int arrayindex = 0;
-float OpenU = 0;
-float dummy1,dummy2;
+long double OpenU = 0;
+long double dummy1,dummy2;
 
 //butter
-float a[4]={    1.0000000000000000e+00, -5.7724052480630295e-01,    4.2178704868956213e-01, -5.6297236491842699e-02};
-float b[4]={    9.8531160923927052e-02, 2.9559348277178116e-01, 2.9559348277178116e-01, 9.8531160923927052e-02};
+long double a[4]={    1.0000000000000000e+00, -5.7724052480630295e-01,    4.2178704868956213e-01, -5.6297236491842699e-02};
+long double b[4]={    9.8531160923927052e-02, 2.9559348277178116e-01, 2.9559348277178116e-01, 9.8531160923927052e-02};
 
 long timer = 0;
 long mscount = 0;
@@ -160,16 +153,16 @@ long opentimer = 0;
 
 
 typedef struct steptraj_s {
-    //    float b[7];
-    //    float a[7];
-    //    float xk[7];
-    //    float yk[7];
-    long double b[7];
-    long double a[7];
-    long double xk[7];
-    long double yk[7];
-    float qd_old;
-    float qddot_old;
+//    long double b[7];
+//    long double a[7];
+//    long double xk[7];
+//    long double yk[7];
+        long double b[7];
+        long double a[7];
+        long double xk[7];
+        long double yk[7];
+    long double qd_old;
+    long double qddot_old;
     int size;
 } steptraj_t;
 
@@ -182,7 +175,7 @@ steptraj_t trajectory = {9.4204523525420674e-13L,5.6522714115252405e-12L,1.41306
                          7};
 
 // this function must be called every 1ms.
-void implement_discrete_tf(steptraj_t *traj, float step, float *qd, float *qd_dot, float *qd_ddot) {
+void implement_discrete_tf(steptraj_t *traj, long double step, long double *qd, long double *qd_dot, long double *qd_ddot) {
     int i = 0;
 
     traj->xk[0] = step;
@@ -262,21 +255,10 @@ void ADChwifunc(void)
     // control
     squarefunc();
     //openloopstep();
-    //implement_discrete_tf(&trajectory,des,&ref,&dummy1,&dummy2);
-
-    // 1st order tf trial
-    //    ref = 0.6*ref_old + 0.2*(des + des_old);
-    //    des_old = des;
-    //    ref_old = ref;
-
-    // butter trial
-    ref = b[0]*des + b[1]*des_old + b[2]*des_old1 + b[3]*des_old2 - a[1]*ref_old - a[2]*ref_old1 - a[3]*ref_old2;
-    ref_old2 = ref_old1;
-    ref_old1 = ref_old;
-    ref_old = ref;
-    des_old2 = des_old1;
-    des_old1 = des_old;
-    des_old = des;
+    implement_discrete_tf(&trajectory,des,&ref,&dummy1,&dummy2);
+//    ref = 0.6*ref_old + 0.2*(des + des_old);
+//    des_old = des;
+//    ref_old = ref;
 
 
     vel = 0.6*vel_old + 400*fposn - 400*fposn_old;
